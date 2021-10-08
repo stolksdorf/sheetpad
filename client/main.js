@@ -1,3 +1,4 @@
+const {css,xo,x,cx,comp} = require('../crux.js');
 
 const useLocalState = (scope, key, init)=>{
 	const [val, setVal] = scope.useState(()=>{
@@ -10,7 +11,7 @@ const useLocalState = (scope, key, init)=>{
 	}];
 };
 
-css`
+global.css.main = css`
 	html,body,.root{
 		padding: 0px;
 		margin:0px;
@@ -123,8 +124,8 @@ const Logs = (logs)=>{
 }
 
 
-const CollapseGroup = require('./client/collaspeGroup.js');
-const Editor = require('./client/editor.js');
+const CollapseGroup = require('./collaspeGroup.js');
+const Editor = require('./editor.js');
 
 const Worker = require('./worker.js');
 

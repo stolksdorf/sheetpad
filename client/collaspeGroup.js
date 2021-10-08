@@ -1,5 +1,6 @@
+const {css,xo,x,cx,comp} = require('../crux.js');
 
-css`
+global.css.collapseGroup = css`
 	.CollapseGroup{
 		display        : flex;
 		flex-direction : column;

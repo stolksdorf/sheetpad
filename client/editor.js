@@ -1,13 +1,7 @@
-/*
-<script src='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.js'></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/theme/zenburn.min.css">
-<script src='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/mode/javascript/javascript.min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/keymap/sublime.min.js'></script>
-*/
+const {css,xo,x,cx,comp} = require('../crux.js');
 
 
-css`
+global.css.editor = css`
 	.CodeMirror{
 		height: 100%;
 	}
