@@ -18,7 +18,6 @@ global.css.main = css`
 		height:100vh;
 	}
 	body{
-
 		nav{
 
 		}
@@ -30,34 +29,84 @@ global.css.main = css`
 		border-bottom: 1px solid var(--yellow);
 	}
 
+	table{
+		border: 1px solid black;
+		width: 100%;
+		th, td {
+			border: 1px solid black;
+		}
+	}
 
-	.editor{
-		height : 500px;
-		.CollapseGroup{
+	.CollapseGroup{
+		display        : flex;
+		flex-direction : column;
+		height         : 100%;
+	}
 
+	.Block{
+		border         : 1px solid var(--green);
+		flex-grow      : 0;
+		flex-basis: 0;
+		display: flex;
+		flex-direction: column;
+		h4{
+			flex-grow        : 0;
+			cursor           : pointer;
+			background-color : var(--grey);
+			display          : flex;
+			justify-content  : space-between;
+			border-bottom    : 1px solid var(--blue);
+			.controls{
+				i{
+					&.highlight{
+						color: var(--blue);
+					}
+					&:hover{
+						color: var(--green);
+					}
+				}
+			}
+		}
+		.content{
+			display: none;
+			flex-grow: 1;
+			textarea{
+				height: 100%;
+				width:100%;
+			}
+		}
+		&.expanded{
+			flex-grow : 1;
+			.content{
+				display : block;
+			}
 		}
 	}
 
 	main{
 		display: flex;
 
-		.inputs{
+		.InputPanel{
 			width : 25%;
 		}
 		.editor{
 			flex-grow : 1;
 			height: 100%;
 		}
-		.outputs{
+		.OutputPanel{
 			width : 25%;
+
+			display        : flex;
+			flex-direction : column;
+			height         : 100%;
+			border : 1px solid var(--blue);
 		}
 
-
-		.group{
-			textarea{
-				height:100%;
-				width:100%;
-			}
+		.log{
+			border-bottom: 1px solid var(--green);
+			margin: 0px;
+			padding: 5px 0px;
+			font-size: 0.6em;
 		}
 
 
@@ -65,63 +114,99 @@ global.css.main = css`
 
 `;
 
-// const json2csv = (data)=>{
-// 	let header = Object.keys(data[0]);
+const json2csv = (data=[])=>{
+	let headers = Object.keys(data[0]);
+	return `${headers.join(',')}\n${data.map(row=>{
+		return headers.map(h=>row[h]).join(',')
+	}).join('\n')}`
+};
 
-// };
-
-// const xsv2json = (xsv)=>{
-// 	const delimiter = xsv.indexof('\t')==-1 ? ',' : '\t';
-// 	let [header, ...rows] = xsv.split('\n');
-// 	header = header.split(delimiter);
-// 	return rows.map(row=>{
-// 		return row.split(delimiter).reduce((acc, val, idx)=>{
-// 			acc[header[idx]] = val;
-// 			return acc;
-// 		},{})
-// 	});
-// };
-
-
-
-// //const Sheet = comp(function(name, data, onChange){
-// const Sheet = comp(function(name){
-// 	const [viewMode, setViewMode] = this.useState('edit'); //'table'
-
-// 	const [data, setData] = this.useState('');
-
-// 	const renderSheet = ()=>{
-// 		const data = xsv2json(data);
-
-// 	}
-// 	const renderEdit = ()=>{
-
-// 		return x`<textarea value=${data} oninput=${(evt)=>setData(evt.target.value)}></textarea>`
-// 	}
-
-// 	return x`<div class='Sheet'>
-// 		<div class='controls'>
-// 			<label>${name}</label>
-
-// 			<i class='fa fa-fw fa-copy'></i>
-// 			<i class='fa fa-fw fa-code'></i>
-// 			<i class='fa fa-fw fa-table'></i>
-// 		</div>
-
-// 		${viewMode == 'edit'
-// 			? renderEdit()
-// 			: renderSheet()}
-
-// 		${data}
-// 	</div>`
-// })
-
-
-
-
-const Logs = (logs)=>{
-
+const renderTable = (json)=>{
+	if(!Array.isArray(json) || json.length == 0) return 'Empty Table';
+	const headers = Object.keys(json[0]);
+	return x(`<table>
+		<thead><tr>
+			${headers.map(h=>`<th>${h}</th>`).join('\n')}
+		</tr></thead>
+		<tbody>
+		${json.map(row=>{
+			return `<tr>${headers.map(h=>{
+				return `<td>${row[h]}</td>`
+			}).join('\n')}</tr>`;
+		}).join('\n')}
+		</tbody>
+	</table>`)
 }
+
+global.css.result_block = css`
+	.ResultBlock{
+
+
+	}
+	.LogBlock{
+		.logs{
+			overflow-y: auto;
+		}
+	}
+`
+
+const ResultBlock = comp(function(value){
+	const [mode, setMode] = useLocalState(this, 'result_mode', 'code'); //'table', 'code'
+	const [expanded, setExpanded] = useLocalState(this, 'result_expand', true);
+
+	const handleCopy = (evt)=>{
+		evt.stopPropagation()
+
+		navigator.clipboard.writeText(
+			mode=='table'
+				? json2csv(value)
+				: JSON.stringify(value, null, '\t')
+		)
+	}
+
+
+	return x`<div class=${cx('ResultBlock Block', {expanded})}>
+		<h4 onclick=${()=>setExpanded(!expanded)}>
+			result
+			<div class='controls'>
+				<i class=${cx('fa fa-fw fa-code', {highlight : mode=='code'})} onclick=${(evt)=>{setMode('code');evt.stopPropagation()}}></i>
+				<i class=${cx('fa fa-fw fa-table', {highlight : mode=='table'})} onclick=${(evt)=>{setMode('table');evt.stopPropagation()}}></i>
+				<i class='fa fa-fw fa-copy' alt='test' onclick=${handleCopy}></i>
+			</div>
+		</h4>
+		<div class='content'>
+			${mode=='code' &&
+				x`<pre><code>${JSON.stringify(value, null, '  ')}</code></pre>`
+			}
+			${mode=='table' &&
+				renderTable(value)
+			}
+		</div>
+	</div>`;
+})
+
+
+const Logs = comp(function(logs){
+	const [expanded, setExpanded] = useLocalState(this, 'logs_expand', true);
+
+	return x`<div class=${cx('LogBlock Block', {expanded})}>
+		<h4 onclick=${()=>setExpanded(!expanded)}>
+			logs
+			<div class='controls'>
+			</div>
+		</h4>
+		<div class='content'>
+			<div class='logs'>
+			${logs.map(log=>{
+				if(!Array.isArray(log)) log=[log];
+				return x`<pre class='log'>
+					${log.map(x=>JSON.stringify(x,null,'  ')).join(' ')}
+				</pre>`;
+			})}
+			</div>
+		</div>
+	</div>`;
+})
 
 
 const CollapseGroup = require('./collaspeGroup.js');
@@ -129,58 +214,78 @@ const Editor = require('./editor.js');
 
 const Worker = require('./worker.js');
 
+const InputPanel = require('./inputPanel.js');
+
+
+const initCode = `
+
+
+
+`
+
 const Main = comp(function(){
 	const [code, setCode] = useLocalState(this, 'code', `//Let's gooooo\n\n\n\n`);
-	const [input1, setInput1] = useLocalState(this, 'input1', '');
-	const [input2, setInput2] = useLocalState(this, 'input2', '');
-	const [input3, setInput3] = useLocalState(this, 'input3', '');
+
+	global.code = code;
+
+	const [pending, setPending] = this.useState(false);
 
 	const [output, setOutput] = this.useState({
 		result : null,
 		logs : []
 	});
 
-	console.log(output)
+	const updateCode = (newCode)=>{
+		setCode(newCode);
+
+		global.code = newCode;
+		global.runWorker();
+	}
+
+	// console.log(output)
+
+	// this.useEffect(()=>{
+
+	// 	if(this.refs.debounce) return;
+
+	// 	this.refs.debounce = true;
+
+	// 	setTimeout(()=>{
+	// 		console.log('RUNNING')
+	// 		setOutput(Worker(code, input1));
+	// 		this.refs.debounce = false;
+	// 	}, 500)
+	// }, [code, input1]);
+
 
 	this.useEffect(()=>{
+		global.runWorker = ()=>{
+			setPending(true);
+			clearInterval(this.refs.debounce)
+			this.refs.debounce = setTimeout(()=>{
+				console.log('Running worker')
+				setOutput(Worker(global.code));
+				//this.refs.debounce = false;
+				setPending(false);
+			}, 1000)
+		}
+	}, [])
 
-		if(this.refs.debounce) return;
-
-		this.refs.debounce = true;
-
-		setTimeout(()=>{
-			console.log('RUNNING')
-			setOutput(Worker(code, input1));
-			this.refs.debounce = false;
-		}, 500)
-	}, [code, input1]);
+	console.log(output)
 
 	return x`<div class='root'>
 		<nav>
-			Sheetpad
+			Sheetpad - ${pending ? 'pending' : 'ready'}
 		</nav>
 		<main>
-			<div class='inputs'>
-				${CollapseGroup({
-					input1 : x`<textarea
-						value=${input1}
-						oninput=${(evt)=>setInput1(evt.target.value)}></textarea>`,
-					input2 : x`<textarea
-						value=${input2}
-						oninput=${(evt)=>setInput2(evt.target.value)}></textarea>`,
-					input3 : x`<textarea
-						value=${input3}
-						oninput=${(evt)=>setInput3(evt.target.value)}></textarea>`,
-				}, { input1 : true })}
-			</div>
+			${InputPanel()}
+
 			<div class='editor'>
-				${Editor(code, setCode)}
+				${Editor(code, updateCode)}
 			</div>
-			<div class='outputs'>
-				${CollapseGroup({
-					result : x`<div>${output.result}</div>`,
-					logs : x`<div>BAR</div>`
-				}, { result : true, logs : true })}
+			<div class='OutputPanel'>
+				${ResultBlock(output.result)}
+				${Logs(output.logs)}
 			</div>
 		</main>
 	</div>`
@@ -188,3 +293,20 @@ const Main = comp(function(){
 
 
 module.exports = Main;
+
+
+/*
+<div class='inputs'>
+	${CollapseGroup({
+		input1 : x`<textarea
+			value=${input1}
+			oninput=${(evt)=>setInput1(evt.target.value)}></textarea>`,
+		input2 : x`<textarea
+			value=${input2}
+			oninput=${(evt)=>setInput2(evt.target.value)}></textarea>`,
+		input3 : x`<textarea
+			value=${input3}
+			oninput=${(evt)=>setInput3(evt.target.value)}></textarea>`,
+	}, { input1 : true })}
+</div>
+*/

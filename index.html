@@ -3,6 +3,8 @@
 <head>
 	<title>sheetpad</title>
 
+	<link href="https://netdna.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+
 	<script src='https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.js'></script>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.css">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/theme/zenburn.min.css">
@@ -69,25 +71,75 @@ body main{
 nav{
 	border-bottom:1px solid var(--yellow);
 }
-.editor{
-	height:500px;
+table{
+	border:1px solid black;
+	width:100%;
+}
+table th,table td{
+	border:1px solid black;
+}
+.CollapseGroup{
+	display:flex;
+	flex-direction:column;
+	height:100%;
+}
+.Block{
+	border:1px solid var(--green);
+	flex-grow:0;
+	flex-basis:0;
+	display:flex;
+	flex-direction:column;
+}
+.Block h4{
+	flex-grow:0;
+	cursor:pointer;
+	background-color:var(--grey);
+	display:flex;
+	justify-content:space-between;
+	border-bottom:1px solid var(--blue);
+}
+.Block h4 .controls i.highlight{
+	color:var(--blue);
+}
+.Block h4 .controls i:hover{
+	color:var(--green);
+}
+.Block .content{
+	display:none;
+	flex-grow:1;
+}
+.Block .content textarea{
+	height:100%;
+	width:100%;
+}
+.Block.expanded{
+	flex-grow:1;
+}
+.Block.expanded .content{
+	display:block;
 }
 main{
 	display:flex;
 }
-main .inputs{
+main .InputPanel{
 	width:25%;
 }
 main .editor{
 	flex-grow:1;
 	height:100%;
 }
-main .outputs{
+main .OutputPanel{
 	width:25%;
-}
-main .group textarea{
+	display:flex;
+	flex-direction:column;
 	height:100%;
-	width:100%;
+	border:1px solid var(--blue);
+}
+main .log{
+	border-bottom:1px solid var(--green);
+	margin:0px;
+	padding:5px 0px;
+	font-size:0.6em;
 }
 .CollapseGroup{
 	display:flex;
@@ -113,6 +165,16 @@ main .group textarea{
 }
 .CodeMirror{
 	height:100%;
+}
+.InputPanel{
+	display:flex;
+	flex-direction:column;
+	height:100%;
+	border:1px solid var(--blue);
+}
+
+.LogBlock .logs{
+	overflow-y:auto;
 }</style>
 	<script>window.css={};</script>
 </head>
@@ -687,6 +749,159 @@ const Editor = comp(function(initVal='', onChange=()=>{}, opts={}){
 
 module.exports = Editor;
 },deps:{"../crux.js":"-4gft1c"},fn:'client/editor.js',dn:'client', root:'..'};
+global.__Modules["ro98re"]={func:function(module, exports, global, __filename, __dirname, __root, require){const {css,xo,x,cx,comp} = require('../crux.js');
+
+global.input1 = {};
+global.input2 = {};
+global.input3 = {};
+
+global.css.input_panel = css`
+	.InputPanel{
+		display        : flex;
+		flex-direction : column;
+		height         : 100%;
+		border : 1px solid var(--blue);
+	}
+
+`;
+
+
+const renderTable = (json)=>{
+	if(!Array.isArray(json) || json.length == 0) return 'Empty Table';
+	const headers = Object.keys(json[0]);
+	return x(`<table>
+		<thead><tr>
+			${headers.map(h=>`<th>${h}</th>`).join('\n')}
+		</tr></thead>
+		<tbody>
+		${json.map(row=>{
+			return `<tr>${headers.map(h=>{
+				return `<td>${row[h]}</td>`
+			}).join('\n')}</tr>`;
+		}).join('\n')}
+		</tbody>
+	</table>`)
+}
+
+const useLocalState = (scope, key, init)=>{
+	const [val, setVal] = scope.useState(()=>{
+		try{ return JSON.parse(window.localStorage.getItem(key)) ?? init;
+		}catch(err){ return init; }
+	});
+	return [val, (newVal)=>{
+		try{ window.localStorage.setItem(key, JSON.stringify(newVal)); } catch (err){}
+		setVal(newVal);
+	}];
+};
+
+
+const drawTable = ()=>{
+
+};
+
+//TODO: Parse numbers and booleans
+const xsv2json = (xsv)=>{
+	try{
+		const delimiter = xsv.trim().indexOf('\t')==-1 ? ',' : '\t';
+		let [header, ...rows] = xsv.split('\n');
+		header = header.split(delimiter).map(x=>x.trim());
+		return rows.map(row=>{
+			return row.split(delimiter).reduce((acc, val, idx)=>{
+				acc[header[idx]] = val;
+				return acc;
+			},{})
+		});
+	}catch(err){
+		return [];
+	}
+};
+
+const initSheet = `
+name, score, team
+Agatha,30,red
+Bert,12,red
+Carl,4,blue
+Demi,34,green
+Ethal,22,blue
+`;
+
+
+global.css.sheet_block = css`
+	.SheetBlock{
+
+	}
+`;
+const SheetBlock = comp(function(id, initExpanded=false, initVal=''){
+
+	const [value, setValue] = useLocalState(this, id+'val', initVal);
+	const [mode, setMode] = this.useState('edit'); //'edit', 'table', 'code'
+	const [expanded, setExpanded] = useLocalState(this, id+'expand', initExpanded)
+
+	this.useEffect(()=>{
+		clearInterval(this.refs.debounce)
+		this.refs.debounce = setTimeout(()=>{
+			global[id] = global[id] || {};
+
+			global[id].raw = value.trim();
+			global[id].sheet = xsv2json(value.trim());
+
+			console.log('setting', id)
+			console.log(global[id])
+
+			global.runWorker();
+		}, 500);
+
+	}, [value]);
+
+
+	return x`<div class=${cx('SheetBlock Block', {expanded})}>
+		<h4 onclick=${()=>setExpanded(!expanded)}>
+			${id}
+			<div class='controls'>
+				<i class=${cx('fa fa-fw fa-edit', {highlight : mode=='edit'})} onclick=${(evt)=>{setMode('edit');evt.stopPropagation()}}></i>
+				<i class=${cx('fa fa-fw fa-code', {highlight : mode=='code'})} onclick=${(evt)=>{setMode('code');evt.stopPropagation()}}></i>
+				<i class=${cx('fa fa-fw fa-table', {highlight : mode=='table'})} onclick=${(evt)=>{setMode('table');evt.stopPropagation()}}></i>
+			</div>
+		</h4>
+		<div class='content'>
+			${mode=='edit' &&
+				x`<textarea
+					spellcheck='false'
+					value=${value}
+					oninput=${(evt)=>setValue(evt.target.value)}>
+				</textarea>`
+			}
+			${mode=='code' &&
+				x`<pre><code>${JSON.stringify(global[id].sheet, null, '  ')}</code></pre>`
+			}
+			${mode=='table' &&
+				renderTable(global[id].sheet)
+			}
+		</div>
+	</div>`;
+});
+
+
+
+const InputPanel = comp(function(){
+
+
+
+
+	return x`<div class='InputPanel'>
+		${SheetBlock('sheet1', true, initSheet)}
+		${SheetBlock('sheet2', true)}
+		${SheetBlock('sheet3')}
+	</div>`;
+
+});
+
+
+
+
+
+module.exports = InputPanel;
+},deps:{"../crux.js":"-4gft1c"},fn:'client/inputPanel.js',dn:'client', root:'..'};
 global.__Modules["-1re7ajm"]={func:function(module, exports, global, __filename, __dirname, __root, require){
 
 /*
@@ -696,28 +911,56 @@ Function('"use strict";return (' + obj + ')')();
 */
 
 
+//TODO: add timer to run
+
 module.exports = (code, ...inputs)=>{
-	let logs = [], error, output;
+	let logs = [], error, result;
 
 
-
-	const console = {
-		log : (...args)=>logs.push(args)
-	};
+console.log('FOO', global.input1)
 
 	try{
-		//output = Function('"use strict";return (' + code + ')')();
-		output = eval(`(()=>{
-			let input1 = "${inputs[0]}";
-			${code}
+
+		const console = {
+			log : (...args)=>logs.push(args)
+		};
+
+		let startTime = Date.now();
+
+
+
+		//result = Function('"use strict";return (' + code + ')')();
+		result = eval(`(()=>{
+				let raw1 = \`${global.sheet1.raw}\`;
+				let sheet1 = ${global.sheet1.sheet
+					? JSON.stringify(global.sheet1.sheet)
+					: '[]'};
+				let raw2 = \`${global.sheet2.raw}\`;
+				let sheet2 = ${JSON.stringify(global.sheet2.sheet)};
+				let raw3 = \`${global.sheet3.raw}\`;
+				let sheet3 = ${JSON.stringify(global.input3.sheet)};
+
+				${code}
+
 		})()`);
+
+		logs.push([`Code finished: ${Date.now() - startTime}ms`]);
 	}catch(err){
 		error = err;
+		console.error('ERROR')
+		console.error(err)
+		console.log(err.lineNumber)
+		console.log(err.stack)
+
+		console.log(Object.keys(err))
+		//process error to get actual line number
 		logs.push(err);
 	}
 
+
+
 	return {
-		output, logs, error
+		result, logs, error
 	}
 }
 },deps:{},fn:'client/worker.js',dn:'client', root:'..'};
@@ -741,7 +984,6 @@ global.css.main = css`
 		height:100vh;
 	}
 	body{
-
 		nav{
 
 		}
@@ -753,34 +995,84 @@ global.css.main = css`
 		border-bottom: 1px solid var(--yellow);
 	}
 
+	table{
+		border: 1px solid black;
+		width: 100%;
+		th, td {
+			border: 1px solid black;
+		}
+	}
 
-	.editor{
-		height : 500px;
-		.CollapseGroup{
+	.CollapseGroup{
+		display        : flex;
+		flex-direction : column;
+		height         : 100%;
+	}
 
+	.Block{
+		border         : 1px solid var(--green);
+		flex-grow      : 0;
+		flex-basis: 0;
+		display: flex;
+		flex-direction: column;
+		h4{
+			flex-grow        : 0;
+			cursor           : pointer;
+			background-color : var(--grey);
+			display          : flex;
+			justify-content  : space-between;
+			border-bottom    : 1px solid var(--blue);
+			.controls{
+				i{
+					&.highlight{
+						color: var(--blue);
+					}
+					&:hover{
+						color: var(--green);
+					}
+				}
+			}
+		}
+		.content{
+			display: none;
+			flex-grow: 1;
+			textarea{
+				height: 100%;
+				width:100%;
+			}
+		}
+		&.expanded{
+			flex-grow : 1;
+			.content{
+				display : block;
+			}
 		}
 	}
 
 	main{
 		display: flex;
 
-		.inputs{
+		.InputPanel{
 			width : 25%;
 		}
 		.editor{
 			flex-grow : 1;
 			height: 100%;
 		}
-		.outputs{
+		.OutputPanel{
 			width : 25%;
+
+			display        : flex;
+			flex-direction : column;
+			height         : 100%;
+			border : 1px solid var(--blue);
 		}
 
-
-		.group{
-			textarea{
-				height:100%;
-				width:100%;
-			}
+		.log{
+			border-bottom: 1px solid var(--green);
+			margin: 0px;
+			padding: 5px 0px;
+			font-size: 0.6em;
 		}
 
 
@@ -788,63 +1080,99 @@ global.css.main = css`
 
 `;
 
-// const json2csv = (data)=>{
-// 	let header = Object.keys(data[0]);
+const json2csv = (data=[])=>{
+	let headers = Object.keys(data[0]);
+	return `${headers.join(',')}\n${data.map(row=>{
+		return headers.map(h=>row[h]).join(',')
+	}).join('\n')}`
+};
 
-// };
-
-// const xsv2json = (xsv)=>{
-// 	const delimiter = xsv.indexof('\t')==-1 ? ',' : '\t';
-// 	let [header, ...rows] = xsv.split('\n');
-// 	header = header.split(delimiter);
-// 	return rows.map(row=>{
-// 		return row.split(delimiter).reduce((acc, val, idx)=>{
-// 			acc[header[idx]] = val;
-// 			return acc;
-// 		},{})
-// 	});
-// };
-
-
-
-// //const Sheet = comp(function(name, data, onChange){
-// const Sheet = comp(function(name){
-// 	const [viewMode, setViewMode] = this.useState('edit'); //'table'
-
-// 	const [data, setData] = this.useState('');
-
-// 	const renderSheet = ()=>{
-// 		const data = xsv2json(data);
-
-// 	}
-// 	const renderEdit = ()=>{
-
-// 		return x`<textarea value=${data} oninput=${(evt)=>setData(evt.target.value)}></textarea>`
-// 	}
-
-// 	return x`<div class='Sheet'>
-// 		<div class='controls'>
-// 			<label>${name}</label>
-
-// 			<i class='fa fa-fw fa-copy'></i>
-// 			<i class='fa fa-fw fa-code'></i>
-// 			<i class='fa fa-fw fa-table'></i>
-// 		</div>
-
-// 		${viewMode == 'edit'
-// 			? renderEdit()
-// 			: renderSheet()}
-
-// 		${data}
-// 	</div>`
-// })
-
-
-
-
-const Logs = (logs)=>{
-
+const renderTable = (json)=>{
+	if(!Array.isArray(json) || json.length == 0) return 'Empty Table';
+	const headers = Object.keys(json[0]);
+	return x(`<table>
+		<thead><tr>
+			${headers.map(h=>`<th>${h}</th>`).join('\n')}
+		</tr></thead>
+		<tbody>
+		${json.map(row=>{
+			return `<tr>${headers.map(h=>{
+				return `<td>${row[h]}</td>`
+			}).join('\n')}</tr>`;
+		}).join('\n')}
+		</tbody>
+	</table>`)
 }
+
+global.css.result_block = css`
+	.ResultBlock{
+
+
+	}
+	.LogBlock{
+		.logs{
+			overflow-y: auto;
+		}
+	}
+`
+
+const ResultBlock = comp(function(value){
+	const [mode, setMode] = useLocalState(this, 'result_mode', 'code'); //'table', 'code'
+	const [expanded, setExpanded] = useLocalState(this, 'result_expand', true);
+
+	const handleCopy = (evt)=>{
+		evt.stopPropagation()
+
+		navigator.clipboard.writeText(
+			mode=='table'
+				? json2csv(value)
+				: JSON.stringify(value, null, '\t')
+		)
+	}
+
+
+	return x`<div class=${cx('ResultBlock Block', {expanded})}>
+		<h4 onclick=${()=>setExpanded(!expanded)}>
+			result
+			<div class='controls'>
+				<i class=${cx('fa fa-fw fa-code', {highlight : mode=='code'})} onclick=${(evt)=>{setMode('code');evt.stopPropagation()}}></i>
+				<i class=${cx('fa fa-fw fa-table', {highlight : mode=='table'})} onclick=${(evt)=>{setMode('table');evt.stopPropagation()}}></i>
+				<i class='fa fa-fw fa-copy' alt='test' onclick=${handleCopy}></i>
+			</div>
+		</h4>
+		<div class='content'>
+			${mode=='code' &&
+				x`<pre><code>${JSON.stringify(value, null, '  ')}</code></pre>`
+			}
+			${mode=='table' &&
+				renderTable(value)
+			}
+		</div>
+	</div>`;
+})
+
+
+const Logs = comp(function(logs){
+	const [expanded, setExpanded] = useLocalState(this, 'logs_expand', true);
+
+	return x`<div class=${cx('LogBlock Block', {expanded})}>
+		<h4 onclick=${()=>setExpanded(!expanded)}>
+			logs
+			<div class='controls'>
+			</div>
+		</h4>
+		<div class='content'>
+			<div class='logs'>
+			${logs.map(log=>{
+				if(!Array.isArray(log)) log=[log];
+				return x`<pre class='log'>
+					${log.map(x=>JSON.stringify(x,null,'  ')).join(' ')}
+				</pre>`;
+			})}
+			</div>
+		</div>
+	</div>`;
+})
 
 
 const CollapseGroup = require('./collaspeGroup.js');
@@ -852,58 +1180,78 @@ const Editor = require('./editor.js');
 
 const Worker = require('./worker.js');
 
+const InputPanel = require('./inputPanel.js');
+
+
+const initCode = `
+
+
+
+`
+
 const Main = comp(function(){
 	const [code, setCode] = useLocalState(this, 'code', `//Let's gooooo\n\n\n\n`);
-	const [input1, setInput1] = useLocalState(this, 'input1', '');
-	const [input2, setInput2] = useLocalState(this, 'input2', '');
-	const [input3, setInput3] = useLocalState(this, 'input3', '');
+
+	global.code = code;
+
+	const [pending, setPending] = this.useState(false);
 
 	const [output, setOutput] = this.useState({
 		result : null,
 		logs : []
 	});
 
-	console.log(output)
+	const updateCode = (newCode)=>{
+		setCode(newCode);
+
+		global.code = newCode;
+		global.runWorker();
+	}
+
+	// console.log(output)
+
+	// this.useEffect(()=>{
+
+	// 	if(this.refs.debounce) return;
+
+	// 	this.refs.debounce = true;
+
+	// 	setTimeout(()=>{
+	// 		console.log('RUNNING')
+	// 		setOutput(Worker(code, input1));
+	// 		this.refs.debounce = false;
+	// 	}, 500)
+	// }, [code, input1]);
+
 
 	this.useEffect(()=>{
+		global.runWorker = ()=>{
+			setPending(true);
+			clearInterval(this.refs.debounce)
+			this.refs.debounce = setTimeout(()=>{
+				console.log('Running worker')
+				setOutput(Worker(global.code));
+				//this.refs.debounce = false;
+				setPending(false);
+			}, 1000)
+		}
+	}, [])
 
-		if(this.refs.debounce) return;
-
-		this.refs.debounce = true;
-
-		setTimeout(()=>{
-			console.log('RUNNING')
-			setOutput(Worker(code, input1));
-			this.refs.debounce = false;
-		}, 500)
-	}, [code, input1]);
+	console.log(output)
 
 	return x`<div class='root'>
 		<nav>
-			Sheetpad
+			Sheetpad - ${pending ? 'pending' : 'ready'}
 		</nav>
 		<main>
-			<div class='inputs'>
-				${CollapseGroup({
-					input1 : x`<textarea
-						value=${input1}
-						oninput=${(evt)=>setInput1(evt.target.value)}></textarea>`,
-					input2 : x`<textarea
-						value=${input2}
-						oninput=${(evt)=>setInput2(evt.target.value)}></textarea>`,
-					input3 : x`<textarea
-						value=${input3}
-						oninput=${(evt)=>setInput3(evt.target.value)}></textarea>`,
-				}, { input1 : true })}
-			</div>
+			${InputPanel()}
+
 			<div class='editor'>
-				${Editor(code, setCode)}
+				${Editor(code, updateCode)}
 			</div>
-			<div class='outputs'>
-				${CollapseGroup({
-					result : x`<div>${output.result}</div>`,
-					logs : x`<div>BAR</div>`
-				}, { result : true, logs : true })}
+			<div class='OutputPanel'>
+				${ResultBlock(output.result)}
+				${Logs(output.logs)}
 			</div>
 		</main>
 	</div>`
@@ -911,7 +1259,24 @@ const Main = comp(function(){
 
 
 module.exports = Main;
-},deps:{"../crux.js":"-4gft1c","./collaspeGroup.js":"dmhtav","./editor.js":"12sg8g2","./worker.js":"-1re7ajm"},fn:'client/main.js',dn:'client', root:'..'};
+
+
+/*
+<div class='inputs'>
+	${CollapseGroup({
+		input1 : x`<textarea
+			value=${input1}
+			oninput=${(evt)=>setInput1(evt.target.value)}></textarea>`,
+		input2 : x`<textarea
+			value=${input2}
+			oninput=${(evt)=>setInput2(evt.target.value)}></textarea>`,
+		input3 : x`<textarea
+			value=${input3}
+			oninput=${(evt)=>setInput3(evt.target.value)}></textarea>`,
+	}, { input1 : true })}
+</div>
+*/
+},deps:{"../crux.js":"-4gft1c","./collaspeGroup.js":"dmhtav","./editor.js":"12sg8g2","./worker.js":"-1re7ajm","./inputPanel.js":"ro98re"},fn:'client/main.js',dn:'client', root:'..'};
 	const req = (id)=>{
 		const mod = global.__Modules[id];
 		if(mod.executed) return mod.export;
