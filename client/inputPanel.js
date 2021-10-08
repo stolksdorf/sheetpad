@@ -65,8 +65,7 @@ const xsv2json = (xsv)=>{
 	}
 };
 
-const initSheet = `
-name, score, team
+const initSheet = `name, score, team
 Agatha,30,red
 Bert,12,red
 Carl,4,blue

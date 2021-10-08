@@ -217,14 +217,19 @@ const Worker = require('./worker.js');
 const InputPanel = require('./inputPanel.js');
 
 
-const initCode = `
+const initCode = `//Let's gooooo
+
+console.log(sheet1)
+
+const OnlyBlueTeam = sheet1.filter((row)=>{
+  return row.team == 'blue'
+});
 
 
-
-`
+return OnlyBlueTeam;`
 
 const Main = comp(function(){
-	const [code, setCode] = useLocalState(this, 'code', `//Let's gooooo\n\n\n\n`);
+	const [code, setCode] = useLocalState(this, 'code', initCode);
 
 	global.code = code;
 
