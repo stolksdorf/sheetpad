@@ -141,6 +141,9 @@ main .log{
 	padding:5px 0px;
 	font-size:0.6em;
 }
+.LogBlock .logs{
+	overflow-y:auto;
+}
 .CollapseGroup{
 	display:flex;
 	flex-direction:column;
@@ -172,10 +175,7 @@ main .log{
 	height:100%;
 	border:1px solid var(--blue);
 }
-
-.LogBlock .logs{
-	overflow-y:auto;
-}</style>
+</style>
 	<script>window.css={};</script>
 </head>
 <body><main></main></body>
@@ -480,7 +480,7 @@ const mount = (obj, node)=>{
 
 
 const unmount = (node)=>{
-	if(!node.type) return node;
+	if(!node || !node.type) return node;
 
 	if(node.effects) node.effects.map(({cleanup})=>exe(cleanup));
 	if(node.children) Object.values(node.children).map(unmount);
@@ -816,8 +816,7 @@ const xsv2json = (xsv)=>{
 	}
 };
 
-const initSheet = `
-name, score, team
+const initSheet = `name, score, team
 Agatha,30,red
 Bert,12,red
 Carl,4,blue
@@ -931,13 +930,13 @@ console.log('FOO', global.input1)
 
 		//result = Function('"use strict";return (' + code + ')')();
 		result = eval(`(()=>{
-				let raw1 = \`${global.sheet1.raw}\`;
+				let raw1 = \`${global.sheet1.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet1 = ${global.sheet1.sheet
 					? JSON.stringify(global.sheet1.sheet)
 					: '[]'};
-				let raw2 = \`${global.sheet2.raw}\`;
+				let raw2 = \`${global.sheet2.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet2 = ${JSON.stringify(global.sheet2.sheet)};
-				let raw3 = \`${global.sheet3.raw}\`;
+				let raw3 = \`${global.sheet3.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet3 = ${JSON.stringify(global.input3.sheet)};
 
 				${code}
@@ -954,7 +953,7 @@ console.log('FOO', global.input1)
 
 		console.log(Object.keys(err))
 		//process error to get actual line number
-		logs.push(err);
+		logs.push(err.toString());
 	}
 
 
@@ -1183,14 +1182,20 @@ const Worker = require('./worker.js');
 const InputPanel = require('./inputPanel.js');
 
 
-const initCode = `
+const initCode = `//Let's gooooo
+
+console.log(sheet1)
+
+const OnlyBlueTeam = sheet1.filter((row)=>{
+  return row.team == 'blue'
+});
 
 
 
-`
+return OnlyBlueTeam;`
 
 const Main = comp(function(){
-	const [code, setCode] = useLocalState(this, 'code', `//Let's gooooo\n\n\n\n`);
+	const [code, setCode] = useLocalState(this, 'code', initCode);
 
 	global.code = code;
 

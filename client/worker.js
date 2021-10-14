@@ -27,13 +27,13 @@ console.log('FOO', global.input1)
 
 		//result = Function('"use strict";return (' + code + ')')();
 		result = eval(`(()=>{
-				let raw1 = \`${global.sheet1.raw}\`;
+				let raw1 = \`${global.sheet1.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet1 = ${global.sheet1.sheet
 					? JSON.stringify(global.sheet1.sheet)
 					: '[]'};
-				let raw2 = \`${global.sheet2.raw}\`;
+				let raw2 = \`${global.sheet2.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet2 = ${JSON.stringify(global.sheet2.sheet)};
-				let raw3 = \`${global.sheet3.raw}\`;
+				let raw3 = \`${global.sheet3.raw.replaceAll('\\', '\\\\')}\`;
 				let sheet3 = ${JSON.stringify(global.input3.sheet)};
 
 				${code}
@@ -50,7 +50,7 @@ console.log('FOO', global.input1)
 
 		console.log(Object.keys(err))
 		//process error to get actual line number
-		logs.push(err);
+		logs.push(err.toString());
 	}
 
 
